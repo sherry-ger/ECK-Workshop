@@ -1,0 +1,105 @@
+# This sample sets up an Elasticsearch cluster and a Kibana instance preconfigured for that cluster
+apiVersion: elasticsearch.k8s.elastic.co/v1alpha1
+kind: Elasticsearch
+metadata:
+  name: elasticsearch-sample
+spec:
+  version: "7.3.0"
+  nodes:
+  - config:
+      node.master: true
+      node.data: true
+      node.attr.attr_name: attr_value
+    # this shows how to customize the Elasticsearch pod
+    # with labels and resource limits
+    podTemplate:
+      metadata:
+        labels:
+          foo: bar
+      spec:
+        containers:
+          - name: elasticsearch
+            resources:
+              limits:
+                memory: 2Gi
+                cpu: 1
+    nodeCount: 0
+    ## this shows how to request 100Gi of persistent data storage for pods in this topology element
+    volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        storageClassName: "ssd"
+        resources:
+          requests:
+            storage: 100Gi
+  # hot nodes:
+  - config:
+      node.master: true
+      node.data: true
+      node.attr.data: hot
+    # customize the Elasticsearch pod
+    # with labels and resource limits
+    podTemplate:
+      metadata:
+        labels:
+          type: foo
+      spec:
+        containers:
+          - name: elasticsearch
+            resources:
+              limits:
+                memory: 2Gi
+                cpu: 1
+    nodeCount: 1
+
+    ## persistent data storage request for pods in this topology element
+    volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        storageClassName: "ssd"
+        resources:
+          requests:
+            storage: 50Gi
+  # dedicated data nodes
+  - config:
+      node.master: true
+      node.data: true
+      node.attr.data: warm
+    # customize the Elasticsearch pod
+    # with labels and resource limits
+    podTemplate:
+      metadata:
+        labels:
+          type: bar
+      spec:
+        containers:
+          - name: elasticsearch
+            resources:
+              limits:
+                memory: 2Gi
+                cpu: 1
+    nodeCount: 2
+    ## request persistent data storage for pods in this topology element
+    volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        storageClassName: "ssd"
+        resources:
+          requests:
+            storage: 50Gi
+  http:
+    service:
+      spec:
+        type: LoadBalancer
+#    tls:
+#      selfSignedCertificate:
+#        subjectAltNames:
+#        - ip: 34.83.221.163
+
+

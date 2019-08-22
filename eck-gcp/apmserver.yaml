@@ -1,0 +1,19 @@
+apiVersion: apm.k8s.elastic.co/v1alpha1
+kind: ApmServer
+metadata:
+  labels:
+    controller-tools.k8s.io: "1.0"
+  name: apm-server-sample
+spec:
+  version: "7.3.0"
+  nodeCount: 1
+  output:
+    elasticsearch:
+      ref:
+        name: elasticsearch-sample
+        namespace: default
+  http:
+    service:
+      spec:
+        type: LoadBalancer
+
