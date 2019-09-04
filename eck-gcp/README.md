@@ -4,7 +4,8 @@ Collect logs, metrics, and APM data from a Kubernetes environment, and the appli
 ![Dashboard image](https://raw.githubusercontent.com/elastic/examples/master/k8s-observability-with-eck/ECK-obs-infrastructure.png)
 
 # About GKE
-GKE == Google Kubernetes Engine. If you have never used GKE, you might want to go through the [GKE quickstart](https://cloud.google.com/kubernetes-engine/docs/quickstart).  
+GKE == Google Kubernetes Engine. [Google Cloud platform offers a free tier and $300 credit](https://cloud.google.com/free/)
+In this workshop, we will take advantage of the $300 credit to spin up a Kubernetes cluster on GKE.  If you have never used GKE, you might want to go through the [GKE quickstart](https://cloud.google.com/kubernetes-engine/docs/quickstart).  
 
 # Deploy a k8s cluster in GKE
 
