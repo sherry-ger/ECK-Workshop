@@ -1,0 +1,11 @@
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: hdd
+provisioner: kubernetes.io/gce-pd
+volumeBindingMode: WaitForFirstConsumer
+parameters:
+  type: pd-standard
+#  Could use other types as well
+#  type: pd-ssd
+## https://cloud.google.com/kubernetes-engine/docs/how-to/persistent-volumes/regional-pd

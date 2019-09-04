@@ -60,10 +60,10 @@ spec:
         name: data
       spec:
         accessModes: [ "ReadWriteOnce" ]
-        storageClassName: "ssd"
+        storageClassName: "hdd"
         resources:
           requests:
-            storage: 50Gi
+            storage: 20Gi
   # dedicated data nodes
   - config:
       node.master: true
@@ -89,7 +89,7 @@ spec:
         name: data
       spec:
         accessModes: [ "ReadWriteOnce" ]
-        storageClassName: "ssd"
+        storageClassName: "hdd"
         resources:
           requests:
             storage: 50Gi

@@ -1,17 +1,13 @@
 apiVersion: apm.k8s.elastic.co/v1alpha1
 kind: ApmServer
 metadata:
-  labels:
-    controller-tools.k8s.io: "1.0"
-  name: apm-server-sample
+  name: apm-server-server
+  namespace: default
 spec:
-  version: "7.3.0"
+  version: 7.3.0
   nodeCount: 1
-  output:
-    elasticsearch:
-      ref:
-        name: elasticsearch-sample
-        namespace: default
+  elasticsearchRef:
+    name: elasticsearch-sample
   http:
     service:
       spec:
