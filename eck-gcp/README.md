@@ -23,25 +23,12 @@ Give your cluster a name.
 You can accept the defaults with these exceptions:
 
 - Give the cluster a good name
-- Use the latest `Master Version` (at the time of writing, this is 1.13.6-gke.13)
+- Use the latest `Master Version` (at the time of writing, this is 1.13.7-gke.19)
 - 2 vCPUs per node (this will change the Memory to 7.5GB)
 - Under `Availability, networking, security, and additional features` disable `Stackdriver legacy features` as we will be collecting our own logs and metrics.
 
-## Set up your environment
-
-1. Install [Googl Cloud SDK](https://cloud.google.com/sdk/install) and [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) if you have not done so.
-
-2. Setup your local environment using the following command. Make sure everything matches your cluster. "sherryger" is the name of my Kubernetes cluster. "sherry.ger@elastic.co" is my GCP account ID.
-
-```
-gcloud config set project elastic-sa
-gcloud config set compute/zone us-west1-b
-gcloud config set container/cluster sherryger
-gcloud auth login
-```
-
 ## Connect to your k8s cluster
-When the cluster is ready click on the `Connect` button in the [console](https://console.cloud.google.com/kubernetes/).  If you have the `gcloud` utilities and `kubectl` installed on your workstation you can click the button to copy the connection string and work from your own shell.  
+When the cluster is ready click on the `Connect` button in the [console](https://console.cloud.google.com/kubernetes/).  ## Connect to your k8s cluster.
 
 1. The connection string from the console should look like similar to the following:
 
@@ -55,23 +42,19 @@ By default, the credentials are written to `HOME/.kube/config`  For details, ple
 
 Usually, <USER_NAME> is the email address of the user.
 
-3. To workaround [this issue](https://coreos.com/operators/prometheus/docs/latest/troubleshooting.html), use the following command
-
-```
-kubectl create clusterrolebinding sherry.ger-cluster-admin-binding --clusterrole=cluster-admin --user=sherry.ger@elastic.co 
-```
-
 ## Grab the GitHub repo
-This README and the files needed for the demo app are in sherryger/examples1. (The orginal repo is located at elasic/examples.) Clone the repo:
+
+This README and the files needed for the demo app are in sherryger/ECK-Workshop. (The orginal repo is located at elasic/examples.) Clone the repo:
 ```
-mkdir k8s-observability-with-eck
-cd k8s-observability-with-eck
-git clone https://github.com/sherry-ger/examples-1.git
-cd examples-1/k8s-observability-with-eck
+mkdir ECK-Workshop
+cd ECK-Workshop
+git clone https://github.com/sherry-ger/ECK-Workshop.git
+cd ECK-Workshop/eck-gcp
 ```
 
 # Deploy your Elasticsearch cluster, APM Server, and Kibana Server
 First you will deploy the Elastic Cloud on Kubernetes operator, and then use the operator to deploy Elasticsearch and Kibana
+
 ## Deploy the Elastic Cloud on Kubernetes Operator
 
 ```bash
@@ -81,13 +64,15 @@ kubectl apply -f all-in-one.yaml
 You will see several `CRDs` deployed, these are Custom Resource Definitions which extend the Kubernetes API to allow best practice Elasticsearch clusters, APM Server, and Kibana servers to be deployed.  The operator will then be started in its own k8s namespace, `elastic-system`.  
 
 Check the logs:
+
 ```
 kubectl logs -f elastic-operator-0 -n elastic-system
 ```
 When you see `starting the webhook server` you can `CTRL-C` from the log tail and continue.
 
 # Setup persistent storage
-Elasticsearch should have persistent storage, and it should be fast.  Google allows SSDs to be used, and `storageClassSSD.yaml` will create a `Storage Class` that uses SSDs:
+
+Elasticsearch should have persistent storage, and it should be fast.  Google allows SSDs to be used, and `storageClassSSD.yaml` will create a `Storage Class` that uses SSDs.
 
 ```
 kubectl apply -f storageClassSSD.yaml
@@ -108,6 +93,26 @@ volumeClaimTemplates:
         storage: 200Gi
 ```
 
+If you want to save money, you can use standard storage as well.  To create a `Storage Class` that uses standard storage:
+
+```
+kubectl apply -f storageClassStandard.yaml
+```
+
+In the Elasticsearch configuration file, use the following to deploy with standard storage.
+
+```
+volumeClaimTemplates:
+- metadata:
+    name: data
+  spec:
+    accessModes: [ "ReadWriteOnce" ]
+    storageClassName: "hdd"
+    resources:
+      requests:
+        storage: 200Gi
+```
+
 # Deploy the Elastic Stack
 
 ## Elasticsearch cluster
@@ -116,9 +121,9 @@ Please have a look at `elasticsearch.yaml` file.
 
 - The type of thing being deployed is Elasticsearch
 - The name of the cluster is `elasticsearch-sample`
-- Use version 7.2.0
+- Use version 7.3.0
 - Make this a three node cluster, with 1 hot node and 2 warm nodes
-- Mount a 100Gi volume `data` on hot node using the storage class `ssd` and a 200Gi volume on warm nodes
+- Mount a 20Gi volume `data` on both hot and warm nodes.  Please note, in production, we will be using ssd storage for hot nodes and standard for warm nodes.
 - The LoadBalancer will expose the `elasticsearch` service endpoint to the outside world
 
 ```
@@ -128,6 +133,7 @@ kubectl apply -f elasticsearch.yaml
 ### Check status
 
 You may want to run `kubectl get pods -w` and watch until the Elasticsearch pods get to the ready state, and then use the following command to see if the healthcheck passes:
+
 ```bash
 kubectl get elasticsearch
 ```
@@ -136,11 +142,6 @@ Look for **green**:
 ```bash
 NAME                   HEALTH   NODES   VERSION   PHASE         AGE
 elasticsearch-sample   green    3       7.2.0     Operational   3m
-```
-If `kubectl get elasticsearch` does not work for you, please try the following command instead:
-
-```
-kubectl get elasticsearch -o=custom-columns=NAME:.metadata.name,HEALTH:.status.health,NODES:.status.availableNodes,VERSION:.spec.version
 ```
 
 If the cluster health is not **green**, we may need to do some debugging. To debug an issue,
@@ -154,6 +155,10 @@ kubectl get pods
 2. Use the following command to determine the reason a pod failed or failed to deploy.
 
 ```kubectl describe pod elasticsearch-sample-es-l5pn85mbb7```
+
+3. Tail the log for the pod.
+
+```kubectl logs --follow elasticsearch-sample-es-l5pn85mbb7```
 
 Please note, you may need to specify a namespace if the resource is not found in the default namespace.
 
