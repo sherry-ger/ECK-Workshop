@@ -28,7 +28,7 @@ You can accept the defaults with these exceptions:
 - Under `Availability, networking, security, and additional features` disable `Stackdriver legacy features` as we will be collecting our own logs and metrics.
 
 ## Connect to your k8s cluster
-When the cluster is ready click on the `Connect` button in the [console](https://console.cloud.google.com/kubernetes/).  ## Connect to your k8s cluster.
+When the cluster is ready click on the `Connect` button in the [console](https://console.cloud.google.com/kubernetes/).
 
 1. The connection string from the console should look like similar to the following:
 
