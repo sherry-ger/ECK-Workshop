@@ -141,7 +141,7 @@ kubectl get elasticsearch
 Look for **green**:
 ```bash
 NAME                   HEALTH   NODES   VERSION   PHASE         AGE
-elasticsearch-sample   green    3       7.2.0     Operational   3m
+elasticsearch-sample   green    3       7.3.0     Operational   3m
 ```
 
 If the cluster health is not **green**, we may need to do some debugging. To debug an issue,
@@ -182,9 +182,9 @@ Next deploy Kibana using the `kibana.yaml`.  Detailing the YAML below:
 
 - Deploy Kibana
 - Name it kibana-sample
-- Use version 7.2.0
+- Use version 7.3.0
 - A single node
-- (this is the important bit) Associate it with the Elasticsearch cluster `elasticsearch-sample`
+- Associate it with the Elasticsearch cluster `elasticsearch-sample`
 - Deploy a LoadBalancer service pointing to Kibana
 
 ```
@@ -200,14 +200,9 @@ kubectl get kibana
 Look for **green**:
 ```bash
 NAME            HEALTH   NODES   VERSION   AGE
-kibana-sample   green    1       7.2.0     3m
+kibana-sample   green    1       7.3.0     3m
 ```
 
-Again, if `kubectl get kibana` does not work for you, please try:
-
-```
-kubectl get kibana -o=custom-columns=NAME:.metadata.name,HEALTH:.status.health,NODES:.status.availableNodes,VERSION:.spec.version
-```
 # Deploy Beats
 
 The operators perform many tasks for the user.  Included in the list is setting up TLS certs and securing
@@ -229,34 +224,22 @@ the cert to the Beats in order to connect.  The cert is added to a secret, let's
 ### List the secrets
 
 ```bash
-kubectl get secrets| grep ca
+kubectl get secrets
 ```
+
+We need the `tls.crt`
+
+### Find and extract the cert:
 
 ```bash
-elasticsearch-sample-ca                     Opaque                                1      5h
-elasticsearch-sample-ca-private-key
+kubectl get secret "elasticsearch-sample-es-http-certs-public" -o go-template='{{index .data "tls.crt" | base64decode }}' > tls.crt
 ```
-We need the ca.crt or ca.pem, not the private key
-
-### Find the name of the cert:
-
-```bash
-kubectl get secret elasticsearch-sample-ca -o=json
-```
-This should be ca.pem
-
-
-### Extract the ca:
-
-Make sure to escape the dot in ca.pem
-```bash
-kubectl get secret elasticsearch-sample-ca -o=jsonpath='{.data.ca\.pem}' | base64 --decode
-```
+This should be tls.crt
 
 ### Create a Kubernetes ConfigMap with the cert
 
-Edit the manifest `vi cert.yaml` and replace the sample with the decoded ca.pem.
-Note: Indent the cert like it is in the sample.
+Edit the manifest `vi cert.yaml` and replace the sample with the decoded `tls.crt`
+Note: Include both sections in the cert and indent the cert like it is in the sample.
 
 Create the ConfigMap
 ```bash
@@ -294,12 +277,13 @@ kubectl get secrets | grep user
 
 The output will be similar to this
 ```bash
-elasticsearch-sample-elastic-user                               Opaque                                1      4h
-elasticsearch-sample-es-roles-users                             Opaque                                3      4h
-elasticsearch-sample-internal-users                             Opaque                                3      4h
+default-kibana-sample-kibana-user                Opaque                                3      13d
+elasticsearch-sample-es-elastic-user             Opaque                                1      13d
+elasticsearch-sample-es-internal-users           Opaque                                3      13d
+kibana-sample-kibana-user                        Opaque                                1      13d
 ```
 
-Look at the secret for the `elasticsearch-sample-elastic-user` to find the username
+Look at the secret for the `elasticsearch-sample-es-elastic-user` to find the username
 
 ```bash
 kubectl get secret elasticsearch-sample-elastic-user -o=json
@@ -310,8 +294,9 @@ You will see output like this.  In this example the username is `elastic`:
 {
     "apiVersion": "v1",
     "data": {
-        "elastic": "Mjh0aGxmYm1wZDk2a3A1eG56NWs3a2Rt"
+        "elastic": "dfkdfdkfdjfdjfkdfjdkjfdkjf"
     },
+    "kind": "Secret",
 ...
 ```
 
@@ -325,9 +310,7 @@ echo elastic > ELASTICSEARCH_USERNAME
 Decode and record the password:
 
 ```bash
-echo \
-`kubectl get secret elasticsearch-sample-elastic-user -o=jsonpath='{.data.elastic}' | base64 --decode` \
-  > ELASTICSEARCH_PASSWORD
+echo `kubectl get secret "elasticsearch-sample-es-elastic-user" -o go-template='{{.data.elastic | base64decode }}'`>ELASTICSEARCH_PASSWORD
 ```
 
 # Service names
@@ -340,21 +323,19 @@ kubectl get services
 
 Returns:
 ```bash
-NAME                                        TYPE           CLUSTER-IP      EXTERNAL-IP     PORT(S)          AGE
-service/apm-server-sample-apm-server        LoadBalancer   10.83.246.116   35.230.13.59    8200:32603/TCP   2d
-service/elasticsearch-sample-es             LoadBalancer   10.83.248.204   35.203.47.40   9200:31274/TCP   2d
-service/elasticsearch-sample-es-discovery   ClusterIP      None            <none>          9300/TCP         2d
-service/kibana-sample-kibana                LoadBalancer   10.83.246.36    34.83.81.29     5601:31058/TCP   2d
-service/kubernetes                          ClusterIP      10.83.240.1     <none>          443/TCP          126d
+NAME                           TYPE           CLUSTER-IP    EXTERNAL-IP      PORT(S)          AGE
+apm-server-sample-apm-http     LoadBalancer   10.0.19.33    35.217.7.76      8200:31295/TCP   13d
+elasticsearch-sample-es-http   LoadBalancer   10.0.19.204   34.63.159.50     9200:32112/TCP   13d
+kibana-sample-kb-http          LoadBalancer   10.0.21.235   35.217.122.159   5601:30168/TCP   13d
+kubernetes                     ClusterIP      10.0.16.1     <none>           443/TCP          41d
 ```
-
-The service name for Elasticsearch is `elasticsearch-sample-es`.  The namespace is
-`default`, so the FQDN is `elasticsearch-sample-es.default.svc.cluster.local` and
+The service name for Elasticsearch is `elasticsearch-sample-es-http`.  The namespace is
+`default`, so the FQDN is `elasticsearch-sample-es-http.default.svc.cluster.local` and
 the port is 9200.  The cluster is setup for TLS, so the URL is
-`https://elasticsearch-sample-es.default.svc.cluster.local:9200`.  The
+`https://elasticsearch-sample-es-http.default.svc.cluster.local:9200`.  The
 elasticsearch.hosts setting expects an array, the the full string is:
 ```bash
-["https://elasticsearch-sample-es.default.svc.cluster.local:9200"]
+["https://elasticsearch-sample-es-http.default.svc.cluster.local:9200"]
 ```
 
 ### Record this in ELASTICSEARCH_HOSTS
@@ -362,14 +343,14 @@ elasticsearch.hosts setting expects an array, the the full string is:
 The single quotes around this are needed if using echo to write the file.
 
 ```bash
-echo '["https://elasticsearch-sample-es.default.svc.cluster.local:9200"]' > ELASTICSEARCH_HOSTS
+echo '["https://elasticsearch-sample-es-http.default.svc.cluster.local:9200"]' > ELASTICSEARCH_HOSTS
 ```
 
 The Kibana service name is `kibana-sample-kibana`, the namespace is `default`, and
-the port is 5601.  The protocol is http.  The Kibana entry is not an array, so the
+the port is 5601. Kibana does not use `cluster.local` based on this [issue](https://github.com/elastic/cloud-on-k8s/pull/990) The Kibana entry is not an array, so the
 full string is:
 ```bash
-"http://kibana-sample-kibana.default.svc.cluster.local:5601"
+"https://kibana-sample-kb-http.default.svc:5601"
 ```
 
 ### Record this in KIBANA_HOST
@@ -377,7 +358,7 @@ full string is:
 The single quotes around this are needed if using echo to write the file.
 
 ```bash
-echo '"http://kibana-sample-kibana.default.svc.cluster.local:5601"' > KIBANA_HOST
+echo '"https://kibana-sample-kb-http.default.svc:5601"' > KIBANA_HOST
 ```
 
 ## Create the Kubernetes Secret
@@ -435,16 +416,16 @@ kubectl get pods -w -n guestbook
 # Access Kibana
 Kibana is available through a LoadBalancer service, get the details:
 ```bash
-kubectl get service kibana-sample-kibana
+kubectl get service kibana-sample-kb-http
 ```
 
 Output:
 ```bash
-NAME                   TYPE           CLUSTER-IP     EXTERNAL-IP    PORT(S)          AGE
-kibana-sample-kibana   LoadBalancer   10.10.10.105   34.66.51.175   5601:31229/TCP   20m
+NAME                    TYPE           CLUSTER-IP    EXTERNAL-IP      PORT(S)          AGE
+kibana-sample-kb-http   LoadBalancer   10.0.21.235   35.217.122.159   5601:30168/TCP   13d
 ```
 
-In the above sample, the Kibana URL is `http://34.66.51.175:5601`.  You also need the password for the Elastic user, this is stored in the file ELASTICSEARCH_PASSWORD:
+In the above sample, the Kibana URL is `https://35.217.122.159:5601`.  You also need the password for the Elastic user, this is stored in the file ELASTICSEARCH_PASSWORD:
 
 ```bash
 cat ELASTICSEARCH_PASSWORD
@@ -470,7 +451,7 @@ kubectl get service frontend -n guestbook
 Output:
 ```bash
 NAME       TYPE           CLUSTER-IP    EXTERNAL-IP     PORT(S)        AGE
-frontend   LoadBalancer   10.76.7.248   35.224.82.103   80:32594/TCP   16m
+frontend   LoadBalancer   10.76.7.248   35.214.82.103   80:32594/TCP   16m
 ```
 
 Access the application at `http://<EXTERNAL-IP from output>`
